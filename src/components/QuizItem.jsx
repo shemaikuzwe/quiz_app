@@ -3,11 +3,11 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 export default function QuizItem() {
-  const [current, setCurrent] = useState(1);
+  const [current, setCurrent] = useState(0);
   const [next, setNext] = useState(false);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error,setError]=useState(false);
+  const [error, setError] = useState(false);
   const [answer, setAnswer] = useState(null);
 
   const location = useLocation();
@@ -20,18 +20,18 @@ export default function QuizItem() {
   const getQuiz = async () => {
     setLoading(true);
     fetch(
-        `https://the-trivia-api.com/v2/questions?category=${category}&difficulty=${difficulty}&limit=${limit}`
+      `https://the-trivia-api.com/v2/questions?category=${category}&difficulty=${difficulty}&limit=${limit}`
     )
-        .then((res) => res.json()) // Convert the response to JSON
-        .then((result) => {
-          console.log("API Response:", result); // Log the response to check the data
-          setData(result); // Set the data in state
-          setLoading(false); // Set loading to false after data is set
-        })
-        .catch((e) => {
-          console.error("Error fetching quiz data:", e); // Log the error if fetch fails
-          setLoading(false); // Ensure loading is set to false if there's an error
-        });
+      .then((res) => res.json()) // Convert the response to JSON
+      .then((result) => {
+        console.log("API Response:", result); // Log the response to check the data
+        setData(result); // Set the data in state
+        setLoading(false); // Set loading to false after data is set
+      })
+      .catch((e) => {
+        console.error("Error fetching quiz data:", e); // Log the error if fetch fails
+        setLoading(false); // Ensure loading is set to false if there's an error
+      });
   };
 
   const handleNext = (answer) => {
@@ -53,35 +53,45 @@ export default function QuizItem() {
 
   useEffect(() => {
     getQuiz().then().catch();
-  }, []);
+  }, [category, limit, difficulty]);
 
   if (loading) {
     return <h1>Loading....</h1>;
   }
 
-  if (error){
-    return <h1>Error</h1>
+  if (error) {
+    return <h1>Error</h1>;
   }
-  const currentQuestion = data[current];
-  console.log(data);
-  const answers = [
-    currentQuestion.correctAnswer,
-    ...currentQuestion.incorrectAnswers,
-  ];
 
+  const currentQuestion = data[current] ?? {};
+  const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
+    ? currentQuestion.incorrectAnswers
+    : [];
+  const answers = currentQuestion
+    ? [currentQuestion.correctAnswer, ...incorrectAnswers]
+    : [];
   return (
     <div className={"m-20 border p-5 flex flex-col gap-10 "}>
       <div className={"flex justify-between p-5 border"}>
         <div className={"flex flex-col"}>
-          <span className={"text-xl"}>Category:{currentQuestion.category}</span>
+          <span className={"text-xl"}>
+            Category:
+            {currentQuestion &&
+              currentQuestion.category &&
+              currentQuestion.category}
+          </span>
           <span className={"text-2xl font-bold capitalize text-black"}>
-            Question:{currentQuestion.question.text}
+            Question:
+            {currentQuestion &&
+              currentQuestion.question &&
+              currentQuestion.question.text &&
+              currentQuestion.question.text}
           </span>
         </div>
         <div className={"flex flex-col justify-end items-end"}>
           <span className={"text-black font-bold"}>Time left:20</span>
           <span className={"text-black font-bold"}>
-            Questions {current} of {limit}
+            Questions {current + 1} of {limit}
           </span>
         </div>
       </div>
@@ -89,9 +99,7 @@ export default function QuizItem() {
         {answers &&
           answers.map((ans) => (
             <div
-              className={
-                `block p-5 border rounded w-full text-center hover:bg-indigo-200 cursor-pointer ${ans == currentQuestion.correctAnswer?"bg-green-800":"bg-red-600"}`
-              }
+              className={`block p-5 border rounded w-full text-center hover:bg-indigo-200 cursor-pointer ${next ? (ans === currentQuestion.correctAnswer ? "bg-green-400 hover:bg-green-400" : "bg-red-400 hover:bg-red-400") : ""}`}
               onClick={() => handleNext(ans)}
               key={ans}
             >

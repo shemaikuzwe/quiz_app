@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 
 const Intro = () => {
-
+  
   const navigate = useNavigate();
   const [category, setCategory] = useState("category");
   const [submit, setSubmit] = useState(false);
