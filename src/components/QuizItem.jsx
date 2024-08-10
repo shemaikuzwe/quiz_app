@@ -9,6 +9,8 @@ export default function QuizItem() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [answer, setAnswer] = useState(null);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(20);
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -33,7 +35,13 @@ export default function QuizItem() {
         setLoading(false); // Ensure loading is set to false if there's an error
       });
   };
-
+  const currentQuestion = data[current] ?? {};
+  const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
+    ? currentQuestion.incorrectAnswers
+    : [];
+  const answers = currentQuestion
+    ? [currentQuestion.correctAnswer, ...incorrectAnswers]
+    : [];
   const handleNext = (answer) => {
     setAnswer(answer);
     setNext(true);
@@ -41,6 +49,9 @@ export default function QuizItem() {
 
   const handleNextQuiz = () => {
     if (current < data.length - 1) {
+      if (answer == currentQuestion.correctAnswer) {
+        setScore(score + 1);
+      }
       setCurrent(current + 1);
       setAnswer(null);
       setNext(false);
@@ -54,7 +65,19 @@ export default function QuizItem() {
   useEffect(() => {
     getQuiz().then().catch();
   }, [category, limit, difficulty]);
-
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          clearInterval(timer);
+          handleNext(null)
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [current]);
   if (loading) {
     return <h1>Loading....</h1>;
   }
@@ -63,22 +86,13 @@ export default function QuizItem() {
     return <h1>Error</h1>;
   }
 
-  const currentQuestion = data[current] ?? {};
-  const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
-    ? currentQuestion.incorrectAnswers
-    : [];
-  const answers = currentQuestion
-    ? [currentQuestion.correctAnswer, ...incorrectAnswers]
-    : [];
   return (
     <div className={"m-20 border p-5 flex flex-col gap-10 "}>
       <div className={"flex justify-between p-5 border"}>
         <div className={"flex flex-col"}>
           <span className={"text-xl"}>
             Category:
-            {currentQuestion &&
-              currentQuestion.category &&
-              currentQuestion.category}
+            {category && category}
           </span>
           <span className={"text-2xl font-bold capitalize text-black"}>
             Question:
@@ -88,8 +102,11 @@ export default function QuizItem() {
               currentQuestion.question.text}
           </span>
         </div>
+        <div>
+          <span className={"text-xl"}>Your score:{score}</span>
+        </div>
         <div className={"flex flex-col justify-end items-end"}>
-          <span className={"text-black font-bold"}>Time left:20</span>
+          <span className={"text-black font-bold"}>Time left:{timeLeft}</span>
           <span className={"text-black font-bold"}>
             Questions {current + 1} of {limit}
           </span>
@@ -99,7 +116,13 @@ export default function QuizItem() {
         {answers &&
           answers.map((ans) => (
             <div
-              className={`block p-5 border rounded w-full text-center hover:bg-indigo-200 cursor-pointer ${next ? (ans === currentQuestion.correctAnswer ? "bg-green-400 hover:bg-green-400" : "bg-red-400 hover:bg-red-400") : ""}`}
+              className={`block p-5 border rounded w-full text-center hover:bg-indigo-200 cursor-pointer ${
+                next
+                  ? ans === currentQuestion.correctAnswer
+                    ? "bg-green-400 hover:bg-green-400"
+                    : "bg-red-400 hover:bg-red-400"
+                  : ""
+              }`}
               onClick={() => handleNext(ans)}
               key={ans}
             >

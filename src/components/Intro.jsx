@@ -5,6 +5,7 @@ const Intro = () => {
   
   const navigate = useNavigate();
   const [category, setCategory] = useState("category");
+  const[difficulty,setDifficulty]=useState("sfficulty");
   const [submit, setSubmit] = useState(false);
    const [limit,setLimit]=useState(5);
   const handleSubmit = () => {
@@ -17,6 +18,13 @@ const Intro = () => {
       }
       return  setSubmit(true)
   }
+  const handleDifficulty=(e)=>{
+    setCategory(e);
+    if (e=="category"){
+        return setSubmit(false)
+    }
+    return  setSubmit(true)
+}
   const  handleLimit=(e)=>{
       setLimit(e)
   }
