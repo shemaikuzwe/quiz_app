@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircularProgress } from "@nextui-org/react";
+import { Progress } from "@nextui-org/react";
 import Dialog from "./modal";
 import Results from "./Results";
 export default function QuizItem() {
@@ -23,7 +24,7 @@ export default function QuizItem() {
   const category = searchParams.get("category");
   const limit = searchParams.get("limit");
   const difficulty = searchParams.get("difficulty");
-
+  const ref=useRef(null);
   const getQuiz = async () => {
     setLoading(true);
     fetch(
@@ -117,24 +118,17 @@ export default function QuizItem() {
     return <h1>Error</h1>;
   }
   const end = current == data.length - 1;
+  const progress=(current +1/limit)*100;
   return (
-    <div className={"m-20 border p-5 flex flex-col gap-10 "}>
-      <div className={"flex justify-between p-5 border"}>
+    <div className={"m-20 border p-5 flex flex-col gap-10 rounded"}>
+      <Progress size="md" aria-label="Loading..." value={progress} />
+      <div className={"flex justify-between p-3"}>
         <div className={"flex flex-col w-30"}>
           <span className={"text-xl"}>
             Category:
             {category && category}
           </span>
-          <span className={"text-xl capitalize text-black"}>
-            Question:
-            {currentQuestion &&
-              currentQuestion.question &&
-              currentQuestion.question.text &&
-              currentQuestion.question.text}
-          </span>
-        </div>
-        <div className="w-30">
-          <span className={"text-xl"}>Your score:{score}</span>
+          <span>Your score :{score}</span>
         </div>
         <div className={"flex flex-col justify-end items-end w-20"}>
           <span className={"text-black font-bold"}>
@@ -145,34 +139,40 @@ export default function QuizItem() {
               value={timeLeft}
               color="warning"
               showValueLabel={true}
+              formatOptions={{ style: "decimal" }}
             />
           </span>
-          <span className={"text-black font-bold"}>
-            Questions {current + 1} of {limit}
-          </span>
         </div>
+      </div>
+      <div className="flex justify-center items-center border-b-1 p-4">
+        <span className={"text-xl capitalize text-black"}>
+          Question:
+          {currentQuestion &&
+            currentQuestion.question &&
+            currentQuestion.question.text &&
+            currentQuestion.question.text}
+        </span>
       </div>
       <div className={"flex flex-col gap-3 justify-center items-center mx-24"}>
         {answers &&
           answers.map((ans) => (
             <div
-            className={`block p-5 border rounded w-full text-center cursor-pointer ${
-              !next ? "hover:bg-indigo-200" : ""
-            } ${
-              next
-                ? ans === currentQuestion.correctAnswer
-                  ? "bg-green-400 hover:bg-green-400"
-                  : ans === answer
-                  ? "bg-red-400 hover:bg-red-400"
+              className={`block p-5 border rounded w-full text-center cursor-pointer ${
+                !next ? "hover:bg-indigo-200" : ""
+              } ${
+                next
+                  ? ans === currentQuestion.correctAnswer
+                    ? "bg-green-400 hover:bg-green-400"
+                    : ans === answer
+                    ? "bg-red-400 hover:bg-red-400"
+                    : ""
                   : ""
-                : ""
-            }`}
-            onClick={() => handleNext(ans)}
-            key={ans}
-          >
-            <span>{ans}</span>
-          </div>
-          
+              }`}
+              onClick={() => handleNext(ans)}
+              key={ans}
+            >
+              <span>{ans}</span>
+            </div>
           ))}
       </div>
       <div className={"flex gap-5 justify-center items-center"}>

@@ -8,8 +8,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <NextUIProvider>
-        <App />
+       
+          <App />
+        
       </NextUIProvider>
     </BrowserRouter>
-  </React.StrictMode>,
+  </React.StrictMode>
 );
