@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 
@@ -11,6 +11,8 @@ export default function QuizItem() {
   const [answer, setAnswer] = useState(null);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(20);
+  const[answers,setAnswers]=useState([])
+
 
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -24,44 +26,57 @@ export default function QuizItem() {
     fetch(
       `https://the-trivia-api.com/v2/questions?category=${category}&difficulty=${difficulty}&limit=${limit}`
     )
-      .then((res) => res.json()) // Convert the response to JSON
+      .then((res) => res.json())
       .then((result) => {
-        console.log("API Response:", result); // Log the response to check the data
-        setData(result); // Set the data in state
-        setLoading(false); // Set loading to false after data is set
+        setData(result);
+        setLoading(false);
       })
       .catch((e) => {
-        console.error("Error fetching quiz data:", e); // Log the error if fetch fails
-        setLoading(false); // Ensure loading is set to false if there's an error
+        console.error("Error fetching quiz data:", e);
+        setLoading(false);
       });
   };
-  const currentQuestion = data[current] ?? {};
-  const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
-    ? currentQuestion.incorrectAnswers
-    : [];
-  const answers = currentQuestion
-    ? [currentQuestion.correctAnswer, ...incorrectAnswers]
-    : [];
+    const shuffleArray = (array) => {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
   const handleNext = (answer) => {
     setAnswer(answer);
+    if (answer == currentQuestion.correctAnswer) {
+      setScore(score + 1);
+    }
     setNext(true);
   };
-
+   
   const handleNextQuiz = () => {
     if (current < data.length - 1) {
-      if (answer == currentQuestion.correctAnswer) {
-        setScore(score + 1);
-      }
       setCurrent(current + 1);
       setAnswer(null);
       setNext(false);
+      setTimeLeft(20);
+    } else {
+      navigate("/results");
     }
   };
 
   const handleQuit = () => {
     navigate("/");
   };
-
+    const currentQuestion = data[current] ?? {};
+    const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
+      ? currentQuestion.incorrectAnswers
+      : [];
+    const allanswers = currentQuestion
+      ? [currentQuestion.correctAnswer, ...incorrectAnswers]
+      : [];
+  useEffect(()=>{
+     setAnswers(shuffleArray(allanswers))
+  },[current,data])
+  
   useEffect(() => {
     getQuiz().then().catch();
   }, [category, limit, difficulty]);
@@ -70,7 +85,7 @@ export default function QuizItem() {
       setTimeLeft((prevTime) => {
         if (prevTime <= 1) {
           clearInterval(timer);
-          handleNext(null)
+          handleNext(null);
           return 0;
         }
         return prevTime - 1;
@@ -85,16 +100,16 @@ export default function QuizItem() {
   if (error) {
     return <h1>Error</h1>;
   }
-
+  const end = current == data.length - 1 ? true : false;
   return (
     <div className={"m-20 border p-5 flex flex-col gap-10 "}>
       <div className={"flex justify-between p-5 border"}>
-        <div className={"flex flex-col"}>
+        <div className={"flex flex-col w-30"}>
           <span className={"text-xl"}>
             Category:
             {category && category}
           </span>
-          <span className={"text-2xl font-bold capitalize text-black"}>
+          <span className={"text-xl capitalize text-black"}>
             Question:
             {currentQuestion &&
               currentQuestion.question &&
@@ -102,10 +117,10 @@ export default function QuizItem() {
               currentQuestion.question.text}
           </span>
         </div>
-        <div>
+        <div className="w-30">
           <span className={"text-xl"}>Your score:{score}</span>
         </div>
-        <div className={"flex flex-col justify-end items-end"}>
+        <div className={"flex flex-col justify-end items-end w-20"}>
           <span className={"text-black font-bold"}>Time left:{timeLeft}</span>
           <span className={"text-black font-bold"}>
             Questions {current + 1} of {limit}
@@ -138,7 +153,7 @@ export default function QuizItem() {
             "block px-5 py-1.5 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-500"
           }
         >
-          Next Question
+          {end ? "View results" : "Next question"}
         </button>
         <button
           onClick={handleQuit}
