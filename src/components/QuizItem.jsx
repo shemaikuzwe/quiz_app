@@ -17,7 +17,8 @@ export default function QuizItem() {
   const [showDialog, setShowDialog] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
-
+  const [progress, setProgress] = useState(0);
+  
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const navigate = useNavigate();
@@ -86,6 +87,10 @@ export default function QuizItem() {
   const allanswers = currentQuestion
     ? [currentQuestion.correctAnswer, ...incorrectAnswers]
     : [];
+
+  useEffect(() => {
+    setProgress(((current + 1) / limit) * 100);
+  }, [current, limit]);
   useEffect(() => {
     setAnswers(shuffleArray(allanswers));
   }, [current, data]);
