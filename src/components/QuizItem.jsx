@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { CircularProgress } from "@nextui-org/react";
+import { useEffect, useState } from "react";
+import { Button, CircularProgress } from "@nextui-org/react";
 import { Progress } from "@nextui-org/react";
 import Dialog from "./modal";
 import Results from "./Results";
+import QuizImage from "./Image";
 export default function QuizItem() {
   const [current, setCurrent] = useState(0);
   const [next, setNext] = useState(false);
@@ -18,14 +19,13 @@ export default function QuizItem() {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
   const [progress, setProgress] = useState(0);
-  
+
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const navigate = useNavigate();
   const category = searchParams.get("category");
   const limit = searchParams.get("limit");
   const difficulty = searchParams.get("difficulty");
-  const ref=useRef(null);
   const getQuiz = async () => {
     setLoading(true);
     fetch(
@@ -113,19 +113,26 @@ export default function QuizItem() {
   }, [current]);
   if (loading) {
     return (
-      <div className="flex gap-4 justify-center items-center mt-56">
+      <div className="flex flex-col gap-4 justify-center items-center h-[99vh] pt-25 m-2">
+        <QuizImage />
         <CircularProgress color="primary" aria-label="Loading..." size="lg" />
       </div>
     );
   }
 
-  if (error) {
-    return <h1>Error</h1>;
+  if (error) { 
+    return (
+      <div className="flex gap-4 justify-center items-center h-[99vh] pt-56 m-2">
+        <QuizImage />
+        <span className="text-xl font-bold">Something went wrong</span>
+        <Button onClick={handleRedirect}>Try Again</Button>
+      </div>
+    );
+    ;
   }
   const end = current == data.length - 1;
-  const progress=(current +1/limit)*100;
   return (
-    <div className={"m-20 border p-5 flex flex-col gap-10 rounded"}>
+    <div className={"p-20 border m-2 flex flex-col gap-10 rounded"}>
       <Progress size="md" aria-label="Loading..." value={progress} />
       <div className={"flex justify-between p-3"}>
         <div className={"flex flex-col w-30"}>

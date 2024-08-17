@@ -1,6 +1,6 @@
 import  { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import QuizImage from "./Image";
 const Intro = () => {
   const navigate = useNavigate();
   const [category, setCategory] = useState("");
@@ -79,8 +79,9 @@ const Intro = () => {
   ];
 
   return (
-    <div className="m-20 border p-5 flex flex-col gap-7 rounded justify-center items-center">
-      <h3 className="mt-3 text-2xl text-center font-bold">Quiz App</h3>
+    <div className="p-20 border m-1 h-[98vh] flex flex-col gap-7 rounded justify-center items-center">
+         <QuizImage/>
+       <h3 className="mt-3 text-2xl text-center font-bold">Quiz App</h3>
       <div className={"w-full p-2 border-b-1"}></div>
 
       <select
