@@ -104,13 +104,20 @@ export default function QuizItem() {
         if (prevTime <= 1) {
           clearInterval(timer);
           handleNext(null);
-          return 0;
+          if (current < data.length - 1) {
+            handleNextQuiz(); // Load the next question
+          } else {
+            handleShowResult(); // If it's the last question, show the results
+          }
+  
+          return 0; // Reset the timer
         }
         return prevTime - 1;
       });
     }, 1000);
+  
     return () => clearInterval(timer);
-  }, [current]);
+  }, [current, data]);
   if (loading) {
     return (
       <div className="flex flex-col gap-4 justify-center items-center h-[99vh] pt-25 m-2">
