@@ -1,36 +1,48 @@
+import { Trophy } from "lucide-react";
 import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "@nextui-org/react";
-import { Button } from "@nextui-org/react";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+const getMessage = (percent) => {
+  if (percent === 100) return "Perfect score — flawless!";
+  if (percent >= 80) return "Excellent work!";
+  if (percent >= 50) return "Nice job, keep it up!";
+  return "Keep practicing, you'll get there.";
+};
+
 export default function Results({ isOpen, onClose, onPlay, result }) {
-  const hanldeConfirm = () => {
-    onPlay();
-  };
+  const percent = result.total ? Math.round((result.score / result.total) * 100) : 0;
+
   return (
-    <>
-      <Modal isOpen={isOpen} onOpenChange={onClose}>
-        <ModalContent>
-          <>
-            <ModalHeader className="flex flex-col gap-1">
-              Quiz Results
-            </ModalHeader>
-            <ModalBody>
-              <span>
-                You have got:{result.score}/{result.limit}
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogMedia className="bg-primary/10 text-primary">
+            <Trophy />
+          </AlertDialogMedia>
+          <AlertDialogTitle>Quiz results</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-4xl font-bold tabular-nums text-foreground">
+                {result.score}/{result.total}
               </span>
-            </ModalBody>
-            <ModalFooter>
-              <Button color="primary" onPress={hanldeConfirm}>
-                Play Again
-              </Button>
-            </ModalFooter>
-          </>
-        </ModalContent>
-      </Modal>
-    </>
+              <span>
+                {percent}% · {getMessage(percent)}
+              </span>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="grid-cols-1!">
+          <AlertDialogAction onClick={onPlay}>Play again</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
