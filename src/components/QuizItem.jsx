@@ -1,231 +1,283 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Button, CircularProgress } from "@nextui-org/react";
-import { Progress } from "@nextui-org/react";
-import Dialog from "./modal";
-import Results from "./Results";
-import QuizImage from "./Image";
-export default function QuizItem() {
-  const [current, setCurrent] = useState(0);
-  const [next, setNext] = useState(false);
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [answer, setAnswer] = useState(null);
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(20);
-  const [answers, setAnswers] = useState([]);
-  const [showDialog, setShowDialog] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [results, setResults] = useState([]);
-  const [progress, setProgress] = useState(0);
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { Check, ChevronRight, Loader2, LogOut, RotateCcw, X } from "lucide-react";
+import QuitDialog from "@/components/QuitDialog";
+import Results from "@/components/Results";
+import QuizImage from "@/components/Image";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
+const QUESTION_TIME = 20;
+const REVEAL_DELAY = 1500;
+
+const shuffle = (array) => {
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+const formatLabel = (value = "") =>
+  value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function Timer({ timeLeft }) {
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - timeLeft / QUESTION_TIME);
+  const low = timeLeft <= 5;
+
+  return (
+    <div className="relative size-14" role="timer" aria-label={`${timeLeft} seconds left`}>
+      <svg viewBox="0 0 52 52" className="size-full -rotate-90">
+        <circle cx="26" cy="26" r={radius} className="fill-none stroke-muted" strokeWidth="5" />
+        <circle
+          cx="26"
+          cy="26"
+          r={radius}
+          className={cn(
+            "fill-none transition-[stroke-dashoffset] duration-1000 ease-linear",
+            low ? "stroke-destructive" : "stroke-primary"
+          )}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <span
+        className={cn(
+          "absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums",
+          low && "text-destructive"
+        )}
+      >
+        {timeLeft}
+      </span>
+    </div>
+  );
+}
+
+export default function QuizItem() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const category = searchParams.get("category");
   const limit = searchParams.get("limit");
   const difficulty = searchParams.get("difficulty");
-  const getQuiz = async () => {
-    setLoading(true);
-    fetch(
-      `https://the-trivia-api.com/v2/questions?category=${category}&difficulty=${difficulty}&limit=${limit}`
-    )
+
+  const [data, setData] = useState([]);
+  const [status, setStatus] = useState("loading");
+  const [attempt, setAttempt] = useState(0);
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(QUESTION_TIME);
+  const [showDialog, setShowDialog] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ category, difficulty, limit });
+    fetch(`https://the-trivia-api.com/v2/questions?${params}`, {
+      signal: controller.signal,
+    })
       .then((res) => res.json())
       .then((result) => {
+        if (!Array.isArray(result) || result.length === 0) {
+          throw new Error("No questions returned");
+        }
         setData(result);
-        setLoading(false);
+        setStatus("ready");
       })
       .catch((e) => {
-        setError(e);
-        setLoading(false);
+        if (e.name !== "AbortError") setStatus("error");
       });
-  };
-  const shuffleArray = (array) => {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+    return () => controller.abort();
+  }, [category, limit, difficulty, attempt]);
+
+  const currentQuestion = data[current];
+  const answers = useMemo(
+    () =>
+      currentQuestion
+        ? shuffle([currentQuestion.correctAnswer, ...(currentQuestion.incorrectAnswers ?? [])])
+        : [],
+    [currentQuestion]
+  );
+
+  const timedOut = timeLeft === 0;
+  const revealed = selected !== null || timedOut;
+  const isLast = current === data.length - 1;
+  const progress = data.length ? ((current + 1) / data.length) * 100 : 0;
+
+  const goNext = () => {
+    if (isLast) {
+      setShowResults(true);
+      return;
     }
-    return array;
+    setCurrent((c) => c + 1);
+    setSelected(null);
+    setTimeLeft(QUESTION_TIME);
   };
 
-  const handleNext = (answer) => {
-    setAnswer(answer);
-    if (answer == currentQuestion.correctAnswer) {
-      setScore(score + 1);
-    }
-    setNext(true);
+  const handleAnswer = (ans) => {
+    if (revealed) return;
+    setSelected(ans);
+    if (ans === currentQuestion.correctAnswer) setScore((s) => s + 1);
   };
 
-  const handleNextQuiz = () => {
-    if (current < data.length - 1) {
-      setCurrent(current + 1);
-      setAnswer(null);
-      setNext(false);
-      setTimeLeft(20);
-    }
-  };
-
-  const handleQuit = () => {
-    setShowDialog(true);
-  };
-  const handleQuizQuit = () => {
-    navigate("/");
-  };
-  const handleShowResult = () => {
-    setResults({
-      score: score,
-      limit: limit,
-    });
-    setShowResults(true);
-  };
-
-  const currentQuestion = data[current] ?? {};
-  const incorrectAnswers = Array.isArray(currentQuestion.incorrectAnswers)
-    ? currentQuestion.incorrectAnswers
-    : [];
-  const allanswers = currentQuestion
-    ? [currentQuestion.correctAnswer, ...incorrectAnswers]
-    : [];
-
+  // Count down while a question is unanswered and the quit dialog is closed
   useEffect(() => {
-    setProgress(((current + 1) / limit) * 100);
-  }, [current, limit]);
-  useEffect(() => {
-    setAnswers(shuffleArray(allanswers));
-  }, [current, data]);
-
-  useEffect(() => {
-    getQuiz().then().catch();
-  }, [category, limit, difficulty]);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prevTime) => {
-        if (prevTime <= 1) {
-          clearInterval(timer);
-          handleNext(null);
-          if (current < data.length - 1) {
-            handleNextQuiz(); // Load the next question
-          } else {
-            handleShowResult(); // If it's the last question, show the results
-          }
-  
-          return 0; // Reset the timer
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-  
+    if (status !== "ready" || revealed || showDialog) return;
+    const timer = setInterval(() => setTimeLeft((t) => Math.max(t - 1, 0)), 1000);
     return () => clearInterval(timer);
-  }, [current, data]);
-  if (loading) {
+  }, [status, revealed, showDialog, current]);
+
+  // When time runs out, briefly reveal the answer and move on automatically
+  const onTimeout = useEffectEvent(goNext);
+  useEffect(() => {
+    if (!timedOut) return;
+    const id = setTimeout(onTimeout, REVEAL_DELAY);
+    return () => clearTimeout(id);
+  }, [timedOut, current]);
+
+  const handleRetry = () => {
+    setStatus("loading");
+    setAttempt((a) => a + 1);
+  };
+
+  const handleQuizQuit = () => navigate("/");
+
+  if (status === "loading") {
     return (
-      <div className="flex flex-col gap-4 justify-center items-center h-[99vh] pt-25 m-2">
+      <div className="flex flex-col items-center justify-center gap-6">
         <QuizImage />
-        <CircularProgress color="primary" aria-label="Loading..." size="lg" />
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          Loading questions…
+        </div>
       </div>
     );
   }
 
-  if (error) { 
+  if (status === "error") {
     return (
-      <div className="flex gap-4 justify-center items-center h-[99vh] pt-56 m-2">
-        <QuizImage />
-        <span className="text-xl font-bold">Something went wrong</span>
-        <Button onClick={handleRedirect}>Try Again</Button>
-      </div>
+      <Card className="w-full max-w-md items-center text-center">
+        <CardContent className="flex flex-col items-center gap-4">
+          <QuizImage />
+          <p className="text-xl font-semibold">Something went wrong</p>
+          <p className="text-sm text-muted-foreground">
+            We couldn&apos;t load questions. Check your connection and try again.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={handleQuizQuit}>
+              Back home
+            </Button>
+            <Button onClick={handleRetry}>
+              <RotateCcw />
+              Try again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
-    ;
   }
-  const end = current == data.length - 1;
+
   return (
-    <div className={"p-20 border m-2 flex flex-col gap-10 rounded"}>
-      <Progress size="md" aria-label="Loading..." value={progress} />
-      <div className={"flex justify-between p-3"}>
-        <div className={"flex flex-col w-30"}>
-          <span className={"text-xl"}>
-            Category:
-            {category && category}
-          </span>
-          <span>Your score :{score}</span>
-        </div>
-        <div className={"flex flex-col justify-end items-end w-20"}>
-          <span className={"text-black font-bold"}>
-            {" "}
-            <CircularProgress
-              aria-label="Loading..."
-              size="lg"
-              value={timeLeft}
-              color="warning"
-              showValueLabel={true}
-              formatOptions={{ style: "decimal" }}
-            />
-          </span>
-        </div>
-      </div>
-      <div className="flex justify-center items-center border-b-1 p-4">
-        <span className={"text-xl capitalize text-black"}>
-          Question:
-          {currentQuestion &&
-            currentQuestion.question &&
-            currentQuestion.question.text &&
-            currentQuestion.question.text}
-        </span>
-      </div>
-      <div className={"flex flex-col gap-3 justify-center items-center mx-24"}>
-        {answers &&
-          answers.map((ans) => (
-            <div
-              className={`block p-5 border rounded w-full text-center cursor-pointer ${
-                !next ? "hover:bg-indigo-200" : ""
-              } ${
-                next
-                  ? ans === currentQuestion.correctAnswer
-                    ? "bg-green-400 hover:bg-green-400"
-                    : ans === answer
-                    ? "bg-red-400 hover:bg-red-400"
-                    : ""
-                  : ""
-              }`}
-              onClick={() => handleNext(ans)}
-              key={ans}
-            >
-              <span>{ans}</span>
+    <Card className="w-full shadow-xl shadow-primary/10">
+      <CardHeader className="gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">{formatLabel(category)}</Badge>
+              <Badge variant="outline">{formatLabel(difficulty)}</Badge>
             </div>
-          ))}
-      </div>
-      <div className={"flex gap-5 justify-center items-center"}>
-        <button
-          disabled={!next}
-          onClick={end ? handleShowResult : handleNextQuiz}
-          className={
-            "block px-5 py-1.5 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-500"
-          }
-        >
-          {end ? "View results" : "Next question"}
-        </button>
-        <button
-          onClick={handleQuit}
-          className={"block px-5 py-1.5 bg-red-600 text-white rounded"}
-        >
+            <p className="text-sm text-muted-foreground">
+              Question <span className="font-semibold text-foreground">{current + 1}</span> of{" "}
+              {data.length} · Score{" "}
+              <span className="font-semibold text-foreground">{score}</span>
+            </p>
+          </div>
+          <Timer timeLeft={timeLeft} />
+        </div>
+        <Progress value={progress} aria-label="Quiz progress" />
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-6">
+        <h2 className="text-xl font-semibold leading-snug text-balance sm:text-2xl">
+          {currentQuestion?.question?.text}
+        </h2>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {answers.map((ans, i) => {
+            const isCorrect = ans === currentQuestion.correctAnswer;
+            const isWrongPick = ans === selected && !isCorrect;
+            return (
+              <button
+                type="button"
+                key={ans}
+                onClick={() => handleAnswer(ans)}
+                disabled={revealed}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg border bg-background p-4 text-left text-sm font-medium transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  !revealed && "cursor-pointer hover:-translate-y-0.5 hover:border-primary hover:bg-accent hover:shadow-sm",
+                  revealed && isCorrect && "border-success bg-success/10 text-success",
+                  revealed && isWrongPick && "border-destructive bg-destructive/10 text-destructive",
+                  revealed && !isCorrect && !isWrongPick && "opacity-60"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-muted-foreground",
+                    revealed && isCorrect && "bg-success text-white",
+                    revealed && isWrongPick && "bg-destructive text-white"
+                  )}
+                >
+                  {revealed && isCorrect ? (
+                    <Check className="size-4" />
+                  ) : revealed && isWrongPick ? (
+                    <X className="size-4" />
+                  ) : (
+                    String.fromCharCode(65 + i)
+                  )}
+                </span>
+                <span>{ans}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {timedOut && selected === null && (
+          <p className="text-center text-sm font-medium text-destructive">
+            Time&apos;s up! Moving on…
+          </p>
+        )}
+      </CardContent>
+
+      <CardFooter className="flex-col-reverse gap-3 border-t sm:flex-row sm:justify-between">
+        <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setShowDialog(true)}>
+          <LogOut />
           Quit quiz
-        </button>
-      </div>
-      {showDialog && (
-        <Dialog
-          onConfirm={handleQuizQuit}
-          isOpen={showDialog}
-          onClose={() => setShowDialog(false)}
-        />
-      )}
-      {showResults && (
-        <Results
-          onPlay={handleQuizQuit}
-          isOpen={showResults}
-          onClose={() => setShowResults(false)}
-          result={results}
-        />
-      )}
-    </div>
+        </Button>
+        <Button disabled={!revealed} onClick={goNext} className="w-full sm:w-auto">
+          {isLast ? "View results" : "Next question"}
+          <ChevronRight />
+        </Button>
+      </CardFooter>
+
+      <QuitDialog
+        isOpen={showDialog}
+        onConfirm={handleQuizQuit}
+        onClose={() => setShowDialog(false)}
+      />
+      <Results
+        isOpen={showResults}
+        onPlay={handleQuizQuit}
+        onClose={() => setShowResults(false)}
+        result={{ score, total: data.length }}
+      />
+    </Card>
   );
 }
